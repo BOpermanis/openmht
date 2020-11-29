@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """CLI"""
 
-from .mht import MHT
+from openmht.mht import MHT
 
 import os
 import sys
@@ -48,7 +48,7 @@ def read_uv_csv(file_path, frame_max=100):
                 detections[detection_index].append([u, v])
                 line_count += 1
 
-        logging.info(f'Reading inputs complete. Processed {line_count-1} detections across {len(detections)} frames.')
+        logging.info('Reading inputs complete. Processed {} detections across {} frames.'.format(line_count-1, len(detections)))
 
     return detections
 
@@ -95,12 +95,12 @@ def read_parameters(params_file_path):
                     try:
                         val = float(val)
                     except ValueError:
-                        raise AssertionError(f"Incorrect value type in params.txt: {line}")
+                        raise AssertionError("Incorrect value type in params.txt: {}".format(line))
 
                     param_keys.remove(key)
                     params[key] = val
             else:
-                raise AssertionError(f"Error in params.txt formatting: {line}")
+                raise AssertionError("Error in params.txt formatting: {}".format(line))
 
     if param_keys:
         raise AssertionError("Parameters not found in params.txt: " + ", ".join(param_keys))
@@ -108,42 +108,29 @@ def read_parameters(params_file_path):
     return params
 
 
-def read_cli_parameters():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('ifile', help="Input CSV file path")
-    parser.add_argument('ofile', help="Output CSV file path")
-    parser.add_argument('pfile', help='Path to the parameter text file')
-    args = parser.parse_args()
+def run():
+
+    class Args:
+        def __init__(self):
+            pass
+
+    args = Args()
+    args.ifile = "/home/bruno/repos/openmht/SampleData/TestInput_01.csv"
+    args.ofile = "/home/bruno/repos/openmht/OutputDetections.csv"
+    args.pfile = "/home/bruno/repos/openmht/params.txt"
 
     # Parse arguments
     input_file = args.ifile
     output_file = args.ofile
     param_file = args.pfile
 
-    # Verify CSV file formats
-    try:
-        assert os.path.isfile(input_file), "Input file does not exist: {}".format(input_file)
-        assert os.path.isfile(param_file), "Parameter file does not exist: {}".format(param_file)
-        assert os.path.splitext(input_file)[-1].lower() == '.csv', "Input file is not CSV: {}".format(input_file)
-        assert os.path.splitext(output_file)[-1].lower() == '.csv', "Output file is not CSV: {}".format(output_file)
-        assert os.path.splitext(param_file)[-1].lower() == '.txt', "Parameter file is not TXT: {}".format(param_file)
-
-    except AssertionError as e:
-        print(e)
-        sys.exit(2)
-
-    logging.info(f"Input file is: {input_file}")
-    logging.info(f"Output file is: {output_file}")
-    logging.info(f"Parameter file is: {param_file}")
+    logging.info("Input file is: {}".format(input_file))
+    logging.info("Output file is: {}".format(output_file))
+    logging.info("Parameter file is: {}".format(param_file))
 
     # Read MHT parameters
-    try:
-        params = read_parameters(param_file)
-        logging.info(f"MHT parameters: {params}")
-
-    except AssertionError as e:
-        print(e)
-        sys.exit(2)
+    params = read_parameters(param_file)
+    logging.info("MHT parameters: {}".format(params))
 
     # run MHT on detections
     detections = read_uv_csv(input_file)
@@ -154,3 +141,6 @@ def read_cli_parameters():
     end = time.time()
     elapsed_seconds = end - start
     logging.info("Elapsed time (seconds): {0:.3f}".format(elapsed_seconds))
+
+if __name__ == "__main__":
+    run()

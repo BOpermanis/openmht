@@ -19,7 +19,7 @@ class WeightedGraph(Graph):
         Graph.__init__(self, graph_dict)
         self.__weights = {}
 
-    def mwis(self):
+    def mwis(self, flag_return_max_val=False):
         """Determine the maximum weighted independent set."""
 
         # Find all maximal independent sets
@@ -38,6 +38,8 @@ class WeightedGraph(Graph):
                 max_weight = set_weight
                 mwis = ind_set
 
+        if flag_return_max_val:
+            return mwis, max_weight
         return mwis
 
     def ____bron_kerbosch3(self, g, results):
