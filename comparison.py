@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from openmht.weighted_graph import WeightedGraph
 from openmht.kalman_filter import KalmanFilter
-from local_mwis import MWISLocal
+from local_mwis import MWISLocal, genetic
 from time import time
 
 def exact_solution(g):
     gh_graph = WeightedGraph()
     for n in g.nodes():
-        gh_graph.add_weighted_vertex(str(n), g.node[n]['weight'])
+        gh_graph.add_weighted_vertex(str(n), g.nodes[n]['weight'])
     gh_graph.set_edges(g.edges())
     mwis_ids, max_val = gh_graph.mwis(flag_return_max_val=True)
     return mwis_ids, max_val
@@ -22,8 +22,11 @@ def generate_random_graph(seed=0, num_max_nodes=20):
     N = np.random.randint(3, num_max_nodes)
     weights = np.random.uniform(0, 1, (N,))
     G = nx.Graph()
+    # for i in range(N):
+    #     G.add_node(i, attr_dict={'weight': weights[i]})
     for i in range(N):
-        G.add_node(i, attr_dict={'weight': weights[i]})
+        G.add_node(i, weight=weights[i])
+
 
     for i in range(N):
         for j in range(N):
@@ -47,15 +50,19 @@ def get_time(fun):
     return out, time() - s
 
 
+def simplify_graph(wg):
+    nodes = []
+    for n in wg.nodes():
+        nodes.append((n, g.nodes[n]['weight']))
+    edges = wg.edges()
+    return nodes, edges
+
+
 if __name__ == "__main__":
-    from simpleai.search.local import hill_climbing, genetic
 
-    g = generate_random_graph(num_max_nodes=45)
+    g = generate_random_graph(num_max_nodes=40, seed=4)
     mwis_local = MWISLocal()
-    mwis_local.initialize_graph(g)
 
-    initial_state = mwis_local.generate_random_state()
-    mwis_local.initial_state = initial_state
     # print(state)
     # print(mwis_local.value(state))
     # print(mwis_local.heuristic(state))
@@ -63,13 +70,17 @@ if __name__ == "__main__":
     # print(mwis_local.result(state, 4))
     # exit()
     # result = hill_climbing(mwis_local, iterations_limit=20)
-    result, t1 = get_time(lambda: genetic(mwis_local, iterations_limit=20, population_size=4, mutation_chance=0.1))
+    ts = []
+    for _ in range(10):
+        result, t = get_time(lambda: mwis_local.run(*simplify_graph(g)))
+        ts.append(t)
+    t1 = np.average(ts)
 
-    print(result.state, mwis_local.value(result.state))
+    print(result.state, mwis_local.problem.value(result.state))
     (exact_state, exact_value), t2 = get_time(lambda: exact_solution(g))
 
     print(t1, t2)
-    print(result.state, mwis_local.value(result.state))
+    print(result.state, mwis_local.problem.value(result.state))
     print(check_set_independent(result.state, g))
     # nx.draw(g)
     # plt.show()

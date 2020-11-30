@@ -4,6 +4,20 @@ from simpleai.search import SearchProblem, astar
 from simpleai.search.local import hill_climbing
 from collections import defaultdict
 from itertools import chain
+from pprint import pprint
+
+from simpleai.search.utils import BoundedPriorityQueue, InverseTransformSampler
+from simpleai.search.models import SearchNodeValueOrdered
+from simpleai.search.local import _create_genetic_expander
+
+"""
+simpleai versions used:
+simpleai                           0.8.2
+simplegeneric                      0.8.1
+"""
+
+import math
+import random
 
 def check_set_independent(s, g):
     for a in s:
@@ -15,15 +29,13 @@ def check_set_independent(s, g):
 max_mutate = 2
 max_crossover = 0.5
 
-class MWISLocal(SearchProblem):
+class MWISLocalProblem(SearchProblem):
 
-    def initialize_graph(self, wg):
-        self.wg = wg
-        self.wg_edges = {*wg.edges()} | {*[(b, a) for a, b in wg.edges()]}
+    def initialize_graph(self, nodes, edges):
         self.node2nodes = defaultdict(set)
-        self.nodes = {*wg.nodes()}
-        self.weights = {n: wg.node[n]['weight'] for n in self.nodes}
-        for i, j in wg.edges():
+        self.weights = {id:w for id, w in nodes}
+        self.nodes = set(self.weights.keys())
+        for i, j in edges:
             self.node2nodes[i].add(j)
             self.node2nodes[j].add(i)
         self.initial_state = self.generate_random_state()
@@ -108,3 +120,98 @@ class MWISLocal(SearchProblem):
         s_independent = self._add_whats_left(s_independent)
 
         return s_independent
+
+
+def _local_search(problem, fringe_expander, iterations_limit=0, fringe_size=1,
+                  random_initial_states=False, stop_when_no_better=True,
+                  viewer=None):
+    '''
+    Basic algorithm for all local search algorithms.
+    '''
+    if viewer:
+        viewer.event('started')
+
+    fringe = BoundedPriorityQueue(fringe_size)
+
+    if problem.initial_states is None:
+        random_initial_states = True
+
+    if random_initial_states:
+        for _ in range(fringe_size):
+            s = problem.generate_random_state()
+            fringe.append(SearchNodeValueOrdered(state=s, problem=problem))
+    else:
+        for initial_state in problem.initial_states:
+            if not isinstance(initial_state, SearchNodeValueOrdered):
+                initial_state = SearchNodeValueOrdered(state=initial_state, problem=problem)
+            fringe.append(initial_state)
+
+    finish_reason = ''
+    iteration = 0
+    run = True
+    best = None
+
+    while run:
+        if viewer:
+            viewer.event('new_iteration', list(fringe))
+
+        old_best = fringe[0]
+        fringe_expander(fringe, iteration, viewer)
+        best = fringe[0]
+
+        iteration += 1
+
+        if iterations_limit and iteration >= iterations_limit:
+            run = False
+            finish_reason = 'reaching iteration limit'
+        elif old_best.value >= best.value and stop_when_no_better:
+            run = False
+            finish_reason = 'not being able to improve solution'
+
+    if viewer:
+        viewer.event('finished', fringe, best, 'returned after %s' % finish_reason)
+
+    return best, fringe
+
+
+def genetic(problem, population_size=100, mutation_chance=0.1,
+            iterations_limit=0, viewer=None):
+    '''
+    Genetic search.
+
+    population_size specifies the size of the population (ORLY).
+    mutation_chance specifies the probability of a mutation on a child,
+    varying from 0 to 1.
+    If iterations_limit is specified, the algorithm will end after that
+    number of iterations. Else, it will continue until it can't find a
+    better node than the current one.
+    Requires: SearchProblem.generate_random_state, SearchProblem.crossover,
+    SearchProblem.mutate and SearchProblem.value.
+    '''
+    return _local_search(problem,
+                         _create_genetic_expander(problem, mutation_chance),
+                         iterations_limit=iterations_limit,
+                         fringe_size=population_size,
+                         random_initial_states=False,
+                         stop_when_no_better=iterations_limit==0,
+                         viewer=viewer)
+
+
+class MWISLocal:
+    def __init__(self, iterations_limit=20, population_size=4, mutation_chance=0.1):
+        self.problem = MWISLocalProblem()
+        self.iterations_limit = iterations_limit
+        self.population_size = population_size
+        self.mutation_chance = mutation_chance
+        self.initial_states = None
+
+    def run(self, nodes, edges):
+        self.problem.initialize_graph(nodes, edges)
+        self.problem.initial_states = self.initial_states
+        result, population = genetic(self.problem,
+                                     iterations_limit=self.iterations_limit,
+                                     population_size=self.population_size,
+                                     mutation_chance=self.mutation_chance)
+        self.initial_states = population
+        return result
+
