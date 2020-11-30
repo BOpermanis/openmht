@@ -18,7 +18,7 @@ def exact_solution(g):
 
 def generate_random_graph(seed=0, num_max_nodes=20):
     np.random.seed(seed)
-    coef_connection = 1 - 0.9 ** num_max_nodes
+    coef_connection = 0.99 ** num_max_nodes
     N = np.random.randint(3, num_max_nodes)
     weights = np.random.uniform(0, 1, (N,))
     G = nx.Graph()
@@ -27,10 +27,9 @@ def generate_random_graph(seed=0, num_max_nodes=20):
     for i in range(N):
         G.add_node(i, weight=weights[i])
 
-
     for i in range(N):
         for j in range(N):
-            if j > i and np.random.uniform() > coef_connection:
+            if j > i and np.random.uniform() < coef_connection:
                 G.add_edge(i, j)
 
     return G
@@ -50,17 +49,19 @@ def get_time(fun):
     return out, time() - s
 
 
-def simplify_graph(wg):
+def simplify_graph(wg, flag_print_size=False):
     nodes = []
     for n in wg.nodes():
         nodes.append((n, g.nodes[n]['weight']))
     edges = wg.edges()
+    if flag_print_size:
+        print("len(nodes), len(edges)", len(nodes), len(edges))
     return nodes, edges
 
 
 if __name__ == "__main__":
 
-    g = generate_random_graph(num_max_nodes=40, seed=4)
+    g = generate_random_graph(num_max_nodes=100, seed=4)
     mwis_local = MWISLocal()
 
     # print(state)
@@ -71,10 +72,14 @@ if __name__ == "__main__":
     # exit()
     # result = hill_climbing(mwis_local, iterations_limit=20)
     ts = []
-    for _ in range(10):
+    simplify_graph(g, flag_print_size=True)
+    for _ in range(100):
         result, t = get_time(lambda: mwis_local.run(*simplify_graph(g)))
+        print(_, result.state, mwis_local.problem.value(result.state))
         ts.append(t)
     t1 = np.average(ts)
+
+    exit()
 
     print(result.state, mwis_local.problem.value(result.state))
     (exact_state, exact_value), t2 = get_time(lambda: exact_solution(g))

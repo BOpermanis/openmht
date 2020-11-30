@@ -65,7 +65,7 @@ class MWISLocalProblem(SearchProblem):
         return s_independent
 
     def heuristic(self, state):
-        return -sum([len(self.node2nodes[n]) for n in state])
+        return self.value(state) - sum([len(self.node2nodes[n]) for n in state])
 
     def _add_whats_left(self, state):
         # adds so that there is not compliment left (should make optmization more effective if all weights are positive)
@@ -124,7 +124,7 @@ class MWISLocalProblem(SearchProblem):
 
 def _local_search(problem, fringe_expander, iterations_limit=0, fringe_size=1,
                   random_initial_states=False, stop_when_no_better=True,
-                  viewer=None):
+                  viewer=None, best_solution=None):
     '''
     Basic algorithm for all local search algorithms.
     '''
@@ -135,6 +135,9 @@ def _local_search(problem, fringe_expander, iterations_limit=0, fringe_size=1,
 
     if problem.initial_states is None:
         random_initial_states = True
+
+    if best_solution is not None:
+        fringe.append(SearchNodeValueOrdered(state=best_solution, problem=problem))
 
     if random_initial_states:
         for _ in range(fringe_size):
@@ -175,7 +178,7 @@ def _local_search(problem, fringe_expander, iterations_limit=0, fringe_size=1,
 
 
 def genetic(problem, population_size=100, mutation_chance=0.1,
-            iterations_limit=0, viewer=None):
+            iterations_limit=0, viewer=None, best_solution=None):
     '''
     Genetic search.
 
@@ -194,16 +197,24 @@ def genetic(problem, population_size=100, mutation_chance=0.1,
                          fringe_size=population_size,
                          random_initial_states=False,
                          stop_when_no_better=iterations_limit==0,
-                         viewer=viewer)
+                         viewer=viewer,
+                         best_solution=best_solution)
 
 
 class MWISLocal:
-    def __init__(self, iterations_limit=20, population_size=4, mutation_chance=0.1):
+    def __init__(self, iterations_limit=5, population_size=16, mutation_chance=0.1):
         self.problem = MWISLocalProblem()
         self.iterations_limit = iterations_limit
         self.population_size = population_size
         self.mutation_chance = mutation_chance
         self.initial_states = None
+        self.best_solution = None
+
+    def _update_initial_and_best(self, nodes):
+        if self.initial_states is not None:
+            nodes = {*nodes}
+            for state in self.initial_states:
+                state.intersection_update(nodes)
 
     def run(self, nodes, edges):
         self.problem.initialize_graph(nodes, edges)
@@ -211,7 +222,9 @@ class MWISLocal:
         result, population = genetic(self.problem,
                                      iterations_limit=self.iterations_limit,
                                      population_size=self.population_size,
-                                     mutation_chance=self.mutation_chance)
+                                     mutation_chance=self.mutation_chance,
+                                     best_solution=self.best_solution)
+        self.best_solution = result.state
         self.initial_states = population
         return result
 
