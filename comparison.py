@@ -18,7 +18,7 @@ def exact_solution(g):
 
 def generate_random_graph(seed=0, num_max_nodes=20):
     np.random.seed(seed)
-    coef_connection = 0.99 ** num_max_nodes
+    coef_connection = 0.96 ** num_max_nodes
     N = np.random.randint(3, num_max_nodes)
     weights = np.random.uniform(0, 1, (N,))
     G = nx.Graph()
@@ -61,8 +61,8 @@ def simplify_graph(wg, flag_print_size=False):
 
 if __name__ == "__main__":
 
-    g = generate_random_graph(num_max_nodes=100, seed=4)
-    mwis_local = MWISLocal()
+    g = generate_random_graph(num_max_nodes=100, seed=0)
+    mwis_local = MWISLocal(iterations_limit=1, population_size=4, mutation_chance=0.1)
 
     # print(state)
     # print(mwis_local.value(state))
@@ -79,12 +79,13 @@ if __name__ == "__main__":
         ts.append(t)
     t1 = np.average(ts)
 
+    print(t1)
     exit()
-
+    print("num nodes {}, num edges {}".format(len(g.nodes), len(g.edges())))
     print(result.state, mwis_local.problem.value(result.state))
     (exact_state, exact_value), t2 = get_time(lambda: exact_solution(g))
 
-    print(t1, t2)
+    print("time genetic {}, time exact {}".format(t1, t2))
     print(result.state, mwis_local.problem.value(result.state))
     print(check_set_independent(result.state, g))
     # nx.draw(g)

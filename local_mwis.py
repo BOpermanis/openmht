@@ -47,7 +47,8 @@ class MWISLocalProblem(SearchProblem):
         return self.nodes - s_not
 
     def result(self, state, action):
-        return state.union({action})
+        state.add(action)
+        return state
 
     def value(self, state):
         return sum([self.weights[n] for n in state])
@@ -212,12 +213,14 @@ class MWISLocal:
 
     def _update_initial_and_best(self, nodes):
         if self.initial_states is not None:
-            nodes = {*nodes}
+            nodes = {*(_[0] for _ in nodes)}
             for state in self.initial_states:
-                state.intersection_update(nodes)
+                state.state.intersection_update(nodes)
+            self.best_solution.intersection_update(nodes)
 
     def run(self, nodes, edges):
         self.problem.initialize_graph(nodes, edges)
+        self._update_initial_and_best(nodes)
         self.problem.initial_states = self.initial_states
         result, population = genetic(self.problem,
                                      iterations_limit=self.iterations_limit,
